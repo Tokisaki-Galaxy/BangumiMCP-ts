@@ -1,5 +1,5 @@
 {
-  "name": "bangumi-mcp-ts",
+  "name": "bangumi-mcp",
   "main": "src/index.ts",
   "compatibility_date": "2026-04-20",
   "observability": {

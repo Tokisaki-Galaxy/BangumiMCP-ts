@@ -1,0 +1,8 @@
+{
+  "name": "bangumi-mcp-ts",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-20",
+  "observability": {
+    "enabled": true
+  }
+}

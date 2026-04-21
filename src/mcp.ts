@@ -1,5 +1,6 @@
 import type { RuntimeConfig } from "./config";
 import { parseRequestAuth } from "./lib/auth";
+import { promptList, promptMap } from "./prompts";
 import {
   resourceList,
   resourceMap,
@@ -24,6 +25,9 @@ const MCP_CAPABILITIES = {
   resources: {
     listChanged: false,
     subscribe: false,
+  },
+  prompts: {
+    listChanged: false,
   },
 } as const;
 
@@ -120,6 +124,10 @@ function findTool(name: string): ToolDefinition | undefined {
 
 function findResource(uri: string) {
   return resourceMap.get(uri);
+}
+
+function findPrompt(name: string) {
+  return promptMap.get(name);
 }
 
 async function callTool(
@@ -231,6 +239,43 @@ async function handleJsonRpc(
               text,
             },
           ],
+        },
+      };
+    }
+
+    case "prompts/list":
+      return {
+        jsonrpc: "2.0",
+        id,
+        result: { prompts: promptList },
+      };
+
+    case "prompts/get": {
+      const params = asRecord(rpc.params);
+      const name = typeof params?.name === "string" ? params.name : undefined;
+      if (!name) {
+        return {
+          jsonrpc: "2.0",
+          id,
+          error: { code: -32602, message: "prompts/get requires a prompt name." },
+        };
+      }
+
+      const prompt = findPrompt(name);
+      if (!prompt) {
+        return {
+          jsonrpc: "2.0",
+          id,
+          error: { code: -32602, message: `Unknown prompt: ${name}` },
+        };
+      }
+
+      return {
+        jsonrpc: "2.0",
+        id,
+        result: {
+          description: prompt.description,
+          messages: prompt.messages,
         },
       };
     }

@@ -229,7 +229,7 @@ const episodeCollectionTypeEnum = [1, 2, 3] as const;
 
 const calendarTool: ToolDefinition = {
   name: "get_daily_broadcast",
-  description: "Get the daily broadcast schedule for the current week on Bangumi.",
+  description: "Weekly broadcast schedule.",
   inputSchema: schemaObject({}),
   handler: async (_, context) => {
     const result = await api(context, "GET", "/calendar");
@@ -266,13 +266,13 @@ const calendarTool: ToolDefinition = {
 
 const searchSubjectsTool: ToolDefinition = {
   name: "search_subjects",
-  description: "Search for Bangumi subjects.",
+  description: "Search subjects.",
   inputSchema: schemaObject({
-    keyword: schemaString("Search keyword"),
-    subject_type: schemaNumber("Optional subject type filter", subjectTypeEnum),
-    sort: schemaString("Sort order", subjectSortEnum),
-    limit: schemaInteger("Pagination limit", { minimum: 1, maximum: 50, default: 30 }),
-    offset: schemaInteger("Pagination offset", { minimum: 0, default: 0 }),
+    keyword: schemaString("Keyword"),
+    subject_type: schemaNumber("Subject type", subjectTypeEnum),
+    sort: schemaString("Sort", subjectSortEnum),
+    limit: schemaInteger("Limit", { minimum: 1, maximum: 50, default: 30 }),
+    offset: schemaInteger("Offset", { minimum: 0, default: 0 }),
   }, ["keyword"]),
   handler: async (input, context) => {
     const keyword = readString(input, "keyword");
@@ -309,17 +309,17 @@ const searchSubjectsTool: ToolDefinition = {
 
 const browseSubjectsTool: ToolDefinition = {
   name: "browse_subjects",
-  description: "Browse Bangumi subjects by type and filters.",
+  description: "Browse subjects.",
   inputSchema: schemaObject({
     subject_type: schemaNumber("Subject type", subjectTypeEnum),
-    cat: schemaInteger("Category filter"),
-    series: schemaBoolean("Book series filter"),
-    platform: schemaString("Platform filter"),
-    sort: schemaString("Sort order"),
+    cat: schemaInteger("Category"),
+    series: schemaBoolean("Series"),
+    platform: schemaString("Platform"),
+    sort: schemaString("Sort"),
     year: schemaInteger("Year"),
     month: schemaInteger("Month"),
-    limit: schemaInteger("Pagination limit", { minimum: 1, maximum: 50, default: 30 }),
-    offset: schemaInteger("Pagination offset", { minimum: 0, default: 0 }),
+    limit: schemaInteger("Limit", { minimum: 1, maximum: 50, default: 30 }),
+    offset: schemaInteger("Offset", { minimum: 0, default: 0 }),
   }, ["subject_type"]),
   handler: async (input, context) => {
     const subjectType = readNumber(input, "subject_type");
@@ -362,7 +362,7 @@ const browseSubjectsTool: ToolDefinition = {
 
 const getSubjectDetailsTool: ToolDefinition = {
   name: "get_subject_details",
-  description: "Get details of a Bangumi subject.",
+  description: "Get subject details.",
   inputSchema: schemaObject({ subject_id: schemaInteger("Subject ID", { minimum: 1 }) }, ["subject_id"]),
   handler: async (input, context) => {
     const subjectId = readNumber(input, "subject_id");
@@ -378,7 +378,7 @@ const getSubjectDetailsTool: ToolDefinition = {
 
 const getSubjectImageTool: ToolDefinition = {
   name: "get_subject_image",
-  description: "Get the subject image URL.",
+  description: "Get subject image URL.",
   inputSchema: schemaObject({
     subject_id: schemaInteger("Subject ID", { minimum: 1 }),
     image_type: schemaString("Image type", subjectImageTypes),
@@ -401,7 +401,7 @@ const getSubjectImageTool: ToolDefinition = {
 
 const getSubjectPersonsTool: ToolDefinition = {
   name: "get_subject_persons",
-  description: "List persons related to a subject.",
+  description: "List subject persons.",
   inputSchema: schemaObject({ subject_id: schemaInteger("Subject ID", { minimum: 1 }) }, ["subject_id"]),
   handler: async (input, context) => {
     const subjectId = readNumber(input, "subject_id");
@@ -420,7 +420,7 @@ const getSubjectPersonsTool: ToolDefinition = {
 
 const getSubjectCharactersTool: ToolDefinition = {
   name: "get_subject_characters",
-  description: "List characters related to a subject.",
+  description: "List subject characters.",
   inputSchema: schemaObject({ subject_id: schemaInteger("Subject ID", { minimum: 1 }) }, ["subject_id"]),
   handler: async (input, context) => {
     const subjectId = readNumber(input, "subject_id");
@@ -439,7 +439,7 @@ const getSubjectCharactersTool: ToolDefinition = {
 
 const getSubjectRelationsTool: ToolDefinition = {
   name: "get_subject_relations",
-  description: "List related subjects for a subject.",
+  description: "List related subjects.",
   inputSchema: schemaObject({ subject_id: schemaInteger("Subject ID", { minimum: 1 }) }, ["subject_id"]),
   handler: async (input, context) => {
     const subjectId = readNumber(input, "subject_id");
@@ -458,12 +458,12 @@ const getSubjectRelationsTool: ToolDefinition = {
 
 const getEpisodesTool: ToolDefinition = {
   name: "get_episodes",
-  description: "List episodes for a subject.",
+  description: "List episodes.",
   inputSchema: schemaObject({
     subject_id: schemaInteger("Subject ID", { minimum: 1 }),
     episode_type: schemaNumber("Episode type", episodeTypeEnum),
-    limit: schemaInteger("Pagination limit", { minimum: 1, maximum: 200, default: 100 }),
-    offset: schemaInteger("Pagination offset", { minimum: 0, default: 0 }),
+    limit: schemaInteger("Limit", { minimum: 1, maximum: 200, default: 100 }),
+    offset: schemaInteger("Offset", { minimum: 0, default: 0 }),
   }, ["subject_id"]),
   handler: async (input, context) => {
     const subjectId = readNumber(input, "subject_id");
@@ -491,7 +491,7 @@ const getEpisodesTool: ToolDefinition = {
 
 const getEpisodeDetailsTool: ToolDefinition = {
   name: "get_episode_details",
-  description: "Get details of a Bangumi episode.",
+  description: "Get episode details.",
   inputSchema: schemaObject({ episode_id: schemaInteger("Episode ID", { minimum: 1 }) }, ["episode_id"]),
   handler: async (input, context) => {
     const episodeId = readNumber(input, "episode_id");
@@ -507,12 +507,12 @@ const getEpisodeDetailsTool: ToolDefinition = {
 
 const searchPersonsTool: ToolDefinition = {
   name: "search_persons",
-  description: "Search for Bangumi persons or companies.",
+  description: "Search persons.",
   inputSchema: schemaObject({
-    keyword: schemaString("Search keyword"),
-    limit: schemaInteger("Pagination limit", { minimum: 1, default: 30 }),
-    offset: schemaInteger("Pagination offset", { minimum: 0, default: 0 }),
-    career_filter: schemaArray(schemaString("Career filter", personCareerEnum), "Career filter list"),
+    keyword: schemaString("Keyword"),
+    limit: schemaInteger("Limit", { minimum: 1, default: 30 }),
+    offset: schemaInteger("Offset", { minimum: 0, default: 0 }),
+    career_filter: schemaArray(schemaString("Career", personCareerEnum), "Career list"),
   }, ["keyword"]),
   handler: async (input, context) => {
     const keyword = readString(input, "keyword");
@@ -543,7 +543,7 @@ const searchPersonsTool: ToolDefinition = {
 
 const getPersonDetailsTool: ToolDefinition = {
   name: "get_person_details",
-  description: "Get details of a Bangumi person or company.",
+  description: "Get person details.",
   inputSchema: schemaObject({ person_id: schemaInteger("Person ID", { minimum: 1 }) }, ["person_id"]),
   handler: async (input, context) => {
     const personId = readNumber(input, "person_id");
@@ -559,7 +559,7 @@ const getPersonDetailsTool: ToolDefinition = {
 
 const getPersonSubjectsTool: ToolDefinition = {
   name: "get_person_subjects",
-  description: "List subjects related to a person.",
+  description: "List person subjects.",
   inputSchema: schemaObject({ person_id: schemaInteger("Person ID", { minimum: 1 }) }, ["person_id"]),
   handler: async (input, context) => {
     const personId = readNumber(input, "person_id");
@@ -578,7 +578,7 @@ const getPersonSubjectsTool: ToolDefinition = {
 
 const getPersonCharactersTool: ToolDefinition = {
   name: "get_person_characters",
-  description: "List characters related to a person.",
+  description: "List person characters.",
   inputSchema: schemaObject({ person_id: schemaInteger("Person ID", { minimum: 1 }) }, ["person_id"]),
   handler: async (input, context) => {
     const personId = readNumber(input, "person_id");
@@ -597,7 +597,7 @@ const getPersonCharactersTool: ToolDefinition = {
 
 const getPersonImageTool: ToolDefinition = {
   name: "get_person_image",
-  description: "Get the person image URL.",
+  description: "Get person image URL.",
   inputSchema: schemaObject({
     person_id: schemaInteger("Person ID", { minimum: 1 }),
     image_type: schemaString("Image type", personImageTypes),
@@ -620,12 +620,12 @@ const getPersonImageTool: ToolDefinition = {
 
 const searchCharactersTool: ToolDefinition = {
   name: "search_characters",
-  description: "Search for Bangumi characters.",
+  description: "Search characters.",
   inputSchema: schemaObject({
-    keyword: schemaString("Search keyword"),
-    limit: schemaInteger("Pagination limit", { minimum: 1, default: 30 }),
-    offset: schemaInteger("Pagination offset", { minimum: 0, default: 0 }),
-    nsfw_filter: schemaBoolean("Optional NSFW filter"),
+    keyword: schemaString("Keyword"),
+    limit: schemaInteger("Limit", { minimum: 1, default: 30 }),
+    offset: schemaInteger("Offset", { minimum: 0, default: 0 }),
+    nsfw_filter: schemaBoolean("NSFW filter"),
   }, ["keyword"]),
   handler: async (input, context) => {
     const keyword = readString(input, "keyword");
@@ -658,7 +658,7 @@ const searchCharactersTool: ToolDefinition = {
 
 const getCharacterDetailsTool: ToolDefinition = {
   name: "get_character_details",
-  description: "Get details of a Bangumi character.",
+  description: "Get character details.",
   inputSchema: schemaObject({ character_id: schemaInteger("Character ID", { minimum: 1 }) }, ["character_id"]),
   handler: async (input, context) => {
     const characterId = readNumber(input, "character_id");
@@ -674,7 +674,7 @@ const getCharacterDetailsTool: ToolDefinition = {
 
 const getCharacterImageTool: ToolDefinition = {
   name: "get_character_image",
-  description: "Get the character image URL.",
+  description: "Get character image URL.",
   inputSchema: schemaObject({
     character_id: schemaInteger("Character ID", { minimum: 1 }),
     image_type: schemaString("Image type", characterImageTypes),
@@ -697,7 +697,7 @@ const getCharacterImageTool: ToolDefinition = {
 
 const getCharacterSubjectsTool: ToolDefinition = {
   name: "get_character_subjects",
-  description: "List subjects related to a character.",
+  description: "List character subjects.",
   inputSchema: schemaObject({ character_id: schemaInteger("Character ID", { minimum: 1 }) }, ["character_id"]),
   handler: async (input, context) => {
     const characterId = readNumber(input, "character_id");
@@ -721,7 +721,7 @@ const getCharacterSubjectsTool: ToolDefinition = {
 
 const getCharacterPersonsTool: ToolDefinition = {
   name: "get_character_persons",
-  description: "List persons related to a character.",
+  description: "List character persons.",
   inputSchema: schemaObject({ character_id: schemaInteger("Character ID", { minimum: 1 }) }, ["character_id"]),
   handler: async (input, context) => {
     const characterId = readNumber(input, "character_id");
@@ -740,7 +740,7 @@ const getCharacterPersonsTool: ToolDefinition = {
 
 const collectCharacterTool: ToolDefinition = {
   name: "collect_character",
-  description: "Collect a character for the current user.",
+  description: "Collect character.",
   requiresAuth: true,
   inputSchema: schemaObject({ character_id: schemaInteger("Character ID", { minimum: 1 }) }, ["character_id"]),
   handler: async (input, context) => {
@@ -756,7 +756,7 @@ const collectCharacterTool: ToolDefinition = {
 
 const uncollectCharacterTool: ToolDefinition = {
   name: "uncollect_character",
-  description: "Remove a character from the current user's collection.",
+  description: "Uncollect character.",
   requiresAuth: true,
   inputSchema: schemaObject({ character_id: schemaInteger("Character ID", { minimum: 1 }) }, ["character_id"]),
   handler: async (input, context) => {
@@ -772,7 +772,7 @@ const uncollectCharacterTool: ToolDefinition = {
 
 const getUserInfoTool: ToolDefinition = {
   name: "get_user_info",
-  description: "Get Bangumi user information by username.",
+  description: "Get user info.",
   inputSchema: schemaObject({ username: schemaString("Username") }, ["username"]),
   handler: async (input, context) => {
     const username = readString(input, "username");
@@ -787,7 +787,7 @@ const getUserInfoTool: ToolDefinition = {
 
 const getUserAvatarTool: ToolDefinition = {
   name: "get_user_avatar",
-  description: "Get a Bangumi user's avatar URL.",
+  description: "Get avatar URL.",
   inputSchema: schemaObject({
     username: schemaString("Username"),
     avatar_type: schemaString("Avatar type", avatarTypes),
@@ -810,7 +810,7 @@ const getUserAvatarTool: ToolDefinition = {
 
 const getCurrentUserTool: ToolDefinition = {
   name: "get_current_user",
-  description: "Get the current authenticated user's information.",
+  description: "Get current user.",
   requiresAuth: true,
   inputSchema: schemaObject({}),
   handler: async (_, context) => {
@@ -823,13 +823,13 @@ const getCurrentUserTool: ToolDefinition = {
 
 const getUserCollectionsTool: ToolDefinition = {
   name: "get_user_collections",
-  description: "List a user's collections.",
+  description: "List user collections.",
   inputSchema: schemaObject({
     username: schemaString("Username"),
     subject_type: schemaNumber("Subject type", subjectTypeEnum),
     collection_type: schemaNumber("Collection type", collectionTypeEnum),
-    limit: schemaInteger("Pagination limit", { minimum: 1, maximum: 50, default: 30 }),
-    offset: schemaInteger("Pagination offset", { minimum: 0, default: 0 }),
+    limit: schemaInteger("Limit", { minimum: 1, maximum: 50, default: 30 }),
+    offset: schemaInteger("Offset", { minimum: 0, default: 0 }),
   }, ["username"]),
   handler: async (input, context) => {
     const username = readString(input, "username");
@@ -865,7 +865,7 @@ const getUserCollectionsTool: ToolDefinition = {
 
 const getUserSubjectCollectionTool: ToolDefinition = {
   name: "get_user_subject_collection",
-  description: "Get a user's collection status for a subject.",
+  description: "Get subject collection entry.",
   inputSchema: schemaObject({
     username: schemaString("Username"),
     subject_id: schemaInteger("Subject ID", { minimum: 1 }),
@@ -885,7 +885,7 @@ const getUserSubjectCollectionTool: ToolDefinition = {
 
 const updateSubjectCollectionTool: ToolDefinition = {
   name: "update_subject_collection",
-  description: "Update the authenticated user's collection for a subject.",
+  description: "Update subject collection.",
   requiresAuth: true,
   inputSchema: schemaObject({
     subject_id: schemaInteger("Subject ID", { minimum: 1 }),
@@ -924,7 +924,7 @@ const updateSubjectCollectionTool: ToolDefinition = {
 
 const getUserEpisodeCollectionTool: ToolDefinition = {
   name: "get_user_episode_collection",
-  description: "Get the authenticated user's episode collection for a subject.",
+  description: "Get user's episode collection.",
   requiresAuth: true,
   inputSchema: schemaObject({
     subject_id: schemaInteger("Subject ID", { minimum: 1 }),
@@ -964,7 +964,7 @@ const getUserEpisodeCollectionTool: ToolDefinition = {
 
 const updateEpisodeCollectionTool: ToolDefinition = {
   name: "update_episode_collection",
-  description: "Update the authenticated user's collection for multiple episodes.",
+  description: "Update episode collections.",
   requiresAuth: true,
   inputSchema: schemaObject({
     subject_id: schemaInteger("Subject ID", { minimum: 1 }),
@@ -991,7 +991,7 @@ const updateEpisodeCollectionTool: ToolDefinition = {
 
 const getSingleEpisodeCollectionTool: ToolDefinition = {
   name: "get_single_episode_collection",
-  description: "Get the authenticated user's collection for a single episode.",
+  description: "Get single episode collection.",
   requiresAuth: true,
   inputSchema: schemaObject({ episode_id: schemaInteger("Episode ID", { minimum: 1 }) }, ["episode_id"]),
   handler: async (input, context) => {
@@ -1007,7 +1007,7 @@ const getSingleEpisodeCollectionTool: ToolDefinition = {
 
 const updateSingleEpisodeCollectionTool: ToolDefinition = {
   name: "update_single_episode_collection",
-  description: "Update the authenticated user's collection for a single episode.",
+  description: "Update single episode collection.",
   requiresAuth: true,
   inputSchema: schemaObject({
     episode_id: schemaInteger("Episode ID", { minimum: 1 }),
@@ -1027,7 +1027,7 @@ const updateSingleEpisodeCollectionTool: ToolDefinition = {
 
 const getUserCharacterCollectionsTool: ToolDefinition = {
   name: "get_user_character_collections",
-  description: "List a user's collected characters.",
+  description: "List character collections.",
   inputSchema: schemaObject({ username: schemaString("Username") }, ["username"]),
   handler: async (input, context) => {
     const username = readString(input, "username");
@@ -1048,7 +1048,7 @@ const getUserCharacterCollectionsTool: ToolDefinition = {
 
 const getUserCharacterCollectionTool: ToolDefinition = {
   name: "get_user_character_collection",
-  description: "Get a user's collected character entry.",
+  description: "Get character collection entry.",
   inputSchema: schemaObject({
     username: schemaString("Username"),
     character_id: schemaInteger("Character ID", { minimum: 1 }),
@@ -1068,7 +1068,7 @@ const getUserCharacterCollectionTool: ToolDefinition = {
 
 const getUserPersonCollectionsTool: ToolDefinition = {
   name: "get_user_person_collections",
-  description: "List a user's collected persons.",
+  description: "List person collections.",
   inputSchema: schemaObject({ username: schemaString("Username") }, ["username"]),
   handler: async (input, context) => {
     const username = readString(input, "username");
@@ -1089,7 +1089,7 @@ const getUserPersonCollectionsTool: ToolDefinition = {
 
 const getUserPersonCollectionTool: ToolDefinition = {
   name: "get_user_person_collection",
-  description: "Get a user's collected person entry.",
+  description: "Get person collection entry.",
   inputSchema: schemaObject({
     username: schemaString("Username"),
     person_id: schemaInteger("Person ID", { minimum: 1 }),
@@ -1109,7 +1109,7 @@ const getUserPersonCollectionTool: ToolDefinition = {
 
 const collectPersonTool: ToolDefinition = {
   name: "collect_person",
-  description: "Collect a person for the current user.",
+  description: "Collect person.",
   requiresAuth: true,
   inputSchema: schemaObject({ person_id: schemaInteger("Person ID", { minimum: 1 }) }, ["person_id"]),
   handler: async (input, context) => {
@@ -1125,7 +1125,7 @@ const collectPersonTool: ToolDefinition = {
 
 const uncollectPersonTool: ToolDefinition = {
   name: "uncollect_person",
-  description: "Remove a person from the current user's collection.",
+  description: "Uncollect person.",
   requiresAuth: true,
   inputSchema: schemaObject({ person_id: schemaInteger("Person ID", { minimum: 1 }) }, ["person_id"]),
   handler: async (input, context) => {
@@ -1141,7 +1141,7 @@ const uncollectPersonTool: ToolDefinition = {
 
 const collectIndexTool: ToolDefinition = {
   name: "collect_index",
-  description: "Collect an index for the current user.",
+  description: "Collect index.",
   requiresAuth: true,
   inputSchema: schemaObject({ index_id: schemaInteger("Index ID", { minimum: 1 }) }, ["index_id"]),
   handler: async (input, context) => {
@@ -1157,7 +1157,7 @@ const collectIndexTool: ToolDefinition = {
 
 const uncollectIndexTool: ToolDefinition = {
   name: "uncollect_index",
-  description: "Remove an index from the current user's collection.",
+  description: "Uncollect index.",
   requiresAuth: true,
   inputSchema: schemaObject({ index_id: schemaInteger("Index ID", { minimum: 1 }) }, ["index_id"]),
   handler: async (input, context) => {
@@ -1173,11 +1173,11 @@ const uncollectIndexTool: ToolDefinition = {
 
 const createIndexTool: ToolDefinition = {
   name: "create_index",
-  description: "Create a Bangumi index.",
+  description: "Create index.",
   requiresAuth: true,
   inputSchema: schemaObject({
     title: schemaString("Title"),
-    description: schemaString("Description"),
+    description: schemaString("Desc"),
   }, ["title", "description"]),
   handler: async (input, context) => {
     const title = readString(input, "title");
@@ -1194,7 +1194,7 @@ const createIndexTool: ToolDefinition = {
 
 const getIndexTool: ToolDefinition = {
   name: "get_index",
-  description: "Get Bangumi index details.",
+  description: "Get index.",
   inputSchema: schemaObject({ index_id: schemaInteger("Index ID", { minimum: 1 }) }, ["index_id"]),
   handler: async (input, context) => {
     const indexId = readNumber(input, "index_id");
@@ -1209,12 +1209,12 @@ const getIndexTool: ToolDefinition = {
 
 const updateIndexTool: ToolDefinition = {
   name: "update_index",
-  description: "Update a Bangumi index.",
+  description: "Update index.",
   requiresAuth: true,
   inputSchema: schemaObject({
     index_id: schemaInteger("Index ID", { minimum: 1 }),
     title: schemaString("Title"),
-    description: schemaString("Description"),
+    description: schemaString("Desc"),
   }, ["index_id", "title", "description"]),
   handler: async (input, context) => {
     const indexId = readNumber(input, "index_id");
@@ -1233,7 +1233,7 @@ const updateIndexTool: ToolDefinition = {
 
 const getIndexSubjectsTool: ToolDefinition = {
   name: "get_index_subjects",
-  description: "List subjects in a Bangumi index.",
+  description: "List index subjects.",
   inputSchema: schemaObject({
     index_id: schemaInteger("Index ID", { minimum: 1 }),
     subject_type: schemaNumber("Subject type", subjectTypeEnum),
@@ -1265,7 +1265,7 @@ const getIndexSubjectsTool: ToolDefinition = {
 
 const addSubjectToIndexTool: ToolDefinition = {
   name: "add_subject_to_index",
-  description: "Add a subject to a Bangumi index.",
+  description: "Add subject to index.",
   requiresAuth: true,
   inputSchema: schemaObject({
     index_id: schemaInteger("Index ID", { minimum: 1 }),
@@ -1291,7 +1291,7 @@ const addSubjectToIndexTool: ToolDefinition = {
 
 const updateIndexSubjectTool: ToolDefinition = {
   name: "update_index_subject",
-  description: "Update a subject entry inside a Bangumi index.",
+  description: "Update index subject.",
   requiresAuth: true,
   inputSchema: schemaObject({
     index_id: schemaInteger("Index ID", { minimum: 1 }),
@@ -1318,7 +1318,7 @@ const updateIndexSubjectTool: ToolDefinition = {
 
 const removeSubjectFromIndexTool: ToolDefinition = {
   name: "remove_subject_from_index",
-  description: "Remove a subject from a Bangumi index.",
+  description: "Remove subject from index.",
   requiresAuth: true,
   inputSchema: schemaObject({
     index_id: schemaInteger("Index ID", { minimum: 1 }),
@@ -1339,7 +1339,7 @@ const removeSubjectFromIndexTool: ToolDefinition = {
 
 const getPersonRevisionsTool: ToolDefinition = {
   name: "get_person_revisions",
-  description: "Get revision history for a person.",
+  description: "List person revisions.",
   inputSchema: schemaObject({
     person_id: schemaInteger("Person ID", { minimum: 1 }),
     limit: schemaInteger("Pagination limit", { minimum: 1, maximum: 50, default: 30 }),
@@ -1369,7 +1369,7 @@ const getPersonRevisionsTool: ToolDefinition = {
 
 const getPersonRevisionTool: ToolDefinition = {
   name: "get_person_revision",
-  description: "Get a single person revision.",
+  description: "Get person revision.",
   inputSchema: schemaObject({ revision_id: schemaInteger("Revision ID", { minimum: 1 }) }, ["revision_id"]),
   handler: async (input, context) => {
     const revisionId = readNumber(input, "revision_id");
@@ -1384,7 +1384,7 @@ const getPersonRevisionTool: ToolDefinition = {
 
 const getCharacterRevisionsTool: ToolDefinition = {
   name: "get_character_revisions",
-  description: "Get revision history for a character.",
+  description: "List character revisions.",
   inputSchema: schemaObject({
     character_id: schemaInteger("Character ID", { minimum: 1 }),
     limit: schemaInteger("Pagination limit", { minimum: 1, maximum: 50, default: 30 }),
@@ -1414,7 +1414,7 @@ const getCharacterRevisionsTool: ToolDefinition = {
 
 const getCharacterRevisionTool: ToolDefinition = {
   name: "get_character_revision",
-  description: "Get a single character revision.",
+  description: "Get character revision.",
   inputSchema: schemaObject({ revision_id: schemaInteger("Revision ID", { minimum: 1 }) }, ["revision_id"]),
   handler: async (input, context) => {
     const revisionId = readNumber(input, "revision_id");
@@ -1429,7 +1429,7 @@ const getCharacterRevisionTool: ToolDefinition = {
 
 const getSubjectRevisionsTool: ToolDefinition = {
   name: "get_subject_revisions",
-  description: "Get revision history for a subject.",
+  description: "List subject revisions.",
   inputSchema: schemaObject({
     subject_id: schemaInteger("Subject ID", { minimum: 1 }),
     limit: schemaInteger("Pagination limit", { minimum: 1, maximum: 50, default: 30 }),
@@ -1459,7 +1459,7 @@ const getSubjectRevisionsTool: ToolDefinition = {
 
 const getSubjectRevisionTool: ToolDefinition = {
   name: "get_subject_revision",
-  description: "Get a single subject revision.",
+  description: "Get subject revision.",
   inputSchema: schemaObject({ revision_id: schemaInteger("Revision ID", { minimum: 1 }) }, ["revision_id"]),
   handler: async (input, context) => {
     const revisionId = readNumber(input, "revision_id");
@@ -1474,7 +1474,7 @@ const getSubjectRevisionTool: ToolDefinition = {
 
 const getEpisodeRevisionsTool: ToolDefinition = {
   name: "get_episode_revisions",
-  description: "Get revision history for an episode.",
+  description: "List episode revisions.",
   inputSchema: schemaObject({
     episode_id: schemaInteger("Episode ID", { minimum: 1 }),
     limit: schemaInteger("Pagination limit", { minimum: 1, maximum: 50, default: 30 }),
@@ -1504,7 +1504,7 @@ const getEpisodeRevisionsTool: ToolDefinition = {
 
 const getEpisodeRevisionTool: ToolDefinition = {
   name: "get_episode_revision",
-  description: "Get a single episode revision.",
+  description: "Get episode revision.",
   inputSchema: schemaObject({ revision_id: schemaInteger("Revision ID", { minimum: 1 }) }, ["revision_id"]),
   handler: async (input, context) => {
     const revisionId = readNumber(input, "revision_id");
@@ -1520,8 +1520,8 @@ const getEpisodeRevisionTool: ToolDefinition = {
 const resources: ResourceDefinition[] = [
   {
     uri: "bangumi://openapi",
-    name: "Bangumi OpenAPI Spec",
-    description: "Bangumi API OpenAPI specification copied into the repository.",
+    name: "OpenAPI",
+    description: "Bangumi OpenAPI spec.",
     mimeType: "application/json",
     read: async () => prettyJson(openapiSpec),
   },

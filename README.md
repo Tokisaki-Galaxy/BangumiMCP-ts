@@ -18,6 +18,7 @@ Worker 入口：
 
 - `GET /` 返回状态信息
 - `POST /mcp` 处理 MCP JSON-RPC
+- 支持 `tools`、`resources`、`prompts`
 
 请求认证：
 

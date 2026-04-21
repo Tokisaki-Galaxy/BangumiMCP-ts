@@ -2,7 +2,12 @@ import type { RuntimeConfig } from "./config";
 import { parseRequestAuth } from "./lib/auth";
 import { resources, tools, type ToolContext, type ToolDefinition, type ResourceDefinition, type ToolResponse } from "./tools";
 
-const SUPPORTED_PROTOCOL_VERSIONS = new Set(["2025-03-26", "2025-06-18", "2024-11-05"]);
+const SUPPORTED_PROTOCOL_VERSIONS = new Set([
+  "2025-11-25",
+  "2025-06-18",
+  "2025-03-26",
+  "2024-11-05",
+]);
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";

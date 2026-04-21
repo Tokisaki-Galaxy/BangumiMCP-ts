@@ -41,6 +41,19 @@ export interface ResourceDefinition {
 
 type JsonSchema = Record<string, unknown>;
 
+export interface ToolEntry {
+  name: string;
+  description: string;
+  inputSchema: JsonSchema;
+}
+
+export interface ResourceEntry {
+  uri: string;
+  name: string;
+  description: string;
+  mimeType: string;
+}
+
 function schemaString(description: string, enumValues?: readonly string[]): JsonSchema {
   return {
     type: "string",
@@ -1571,5 +1584,26 @@ export const tools: ToolDefinition[] = [
   getEpisodeRevisionsTool,
   getEpisodeRevisionTool,
 ];
+
+export const toolMap = new Map<string, ToolDefinition>(
+  tools.map((tool) => [tool.name, tool] as const),
+);
+
+export const toolList: ToolEntry[] = tools.map((tool) => ({
+  name: tool.name,
+  description: tool.description,
+  inputSchema: tool.inputSchema,
+}));
+
+export const resourceMap = new Map<string, ResourceDefinition>(
+  resources.map((resource) => [resource.uri, resource] as const),
+);
+
+export const resourceList: ResourceEntry[] = resources.map((resource) => ({
+  uri: resource.uri,
+  name: resource.name,
+  description: resource.description,
+  mimeType: resource.mimeType,
+}));
 
 export { resources };

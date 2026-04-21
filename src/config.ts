@@ -12,7 +12,7 @@ export interface RuntimeEnv {
 }
 
 const DEFAULT_API_BASE_URL = "https://api.bgm.tv";
-const DEFAULT_USER_AGENT = "bangumi-mcp-ts/0.1.0";
+const DEFAULT_USER_AGENT = "Tokisaki-Galaxy/BangumiMCP-ts (https://github.com/Tokisaki-Galaxy/BangumiMCP-ts)";
 const DEFAULT_PROTOCOL_VERSION = "2025-03-26";
 
 function trimTrailingSlash(value: string): string {

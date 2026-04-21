@@ -1,6 +1,14 @@
 import type { RuntimeConfig } from "./config";
 import { parseRequestAuth } from "./lib/auth";
-import { resources, tools, type ToolContext, type ToolDefinition, type ResourceDefinition, type ToolResponse } from "./tools";
+import {
+  resourceList,
+  resourceMap,
+  toolList,
+  toolMap,
+  type ToolContext,
+  type ToolDefinition,
+  type ToolResponse,
+} from "./tools";
 
 const SUPPORTED_PROTOCOL_VERSIONS = new Set([
   "2025-11-25",
@@ -8,6 +16,16 @@ const SUPPORTED_PROTOCOL_VERSIONS = new Set([
   "2025-03-26",
   "2024-11-05",
 ]);
+
+const MCP_CAPABILITIES = {
+  tools: {
+    listChanged: false,
+  },
+  resources: {
+    listChanged: false,
+    subscribe: false,
+  },
+} as const;
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";
@@ -96,29 +114,12 @@ function parseProtocolVersion(request: Request, params: unknown): string {
   return "2025-03-26";
 }
 
-function buildToolList(): unknown[] {
-  return tools.map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    inputSchema: tool.inputSchema,
-  }));
-}
-
-function buildResourceList(): unknown[] {
-  return resources.map((resource) => ({
-    uri: resource.uri,
-    name: resource.name,
-    description: resource.description,
-    mimeType: resource.mimeType,
-  }));
-}
-
 function findTool(name: string): ToolDefinition | undefined {
-  return tools.find((tool) => tool.name === name);
+  return toolMap.get(name);
 }
 
-function findResource(uri: string): ResourceDefinition | undefined {
-  return resources.find((resource) => resource.uri === uri);
+function findResource(uri: string) {
+  return resourceMap.get(uri);
 }
 
 async function callTool(
@@ -160,15 +161,7 @@ async function handleJsonRpc(
             name: context.config.workerName,
             version: context.config.workerVersion,
           },
-          capabilities: {
-            tools: {
-              listChanged: false,
-            },
-            resources: {
-              listChanged: false,
-              subscribe: false,
-            },
-          },
+          capabilities: MCP_CAPABILITIES,
         },
       };
     }
@@ -177,7 +170,7 @@ async function handleJsonRpc(
       return {
         jsonrpc: "2.0",
         id,
-        result: { tools: buildToolList() },
+        result: { tools: toolList },
       };
 
     case "tools/call": {
@@ -203,7 +196,7 @@ async function handleJsonRpc(
       return {
         jsonrpc: "2.0",
         id,
-        result: { resources: buildResourceList() },
+        result: { resources: resourceList },
       };
 
     case "resources/read": {

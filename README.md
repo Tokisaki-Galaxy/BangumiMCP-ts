@@ -24,7 +24,10 @@
 
 ## 快速开始
 
-因为需要传递个人令牌，基于cloudflare免费版本的使用量和安全考虑，请谨慎使用非官方提供的 MCP 服务器。**建议自行部署**，以下是部署指南。
+官方 MCP 服务器（流式HTTP）地址：
+https://bgm.api.tski.uk/mcp
+
+因为可能需要传递个人令牌，基于cloudflare免费版本的使用量和安全考虑，请谨慎使用非官方提供的 MCP 服务器。**建议自行部署**，以下是部署指南。
 
 需求：
 - Cloudflare账号
@@ -117,3 +120,7 @@ bangumiMCP-ts/
 
 - 重点目标是保持 Worker 轻量、无状态、易部署
 - 公开工具优先，写操作通过请求头传 token
+
+### 相关项目与致谢
+
+- **[Ukenn2112/BangumiMCP](https://github.com/Ukenn2112/BangumiMCP)** - Local implementation of BangumiMCP

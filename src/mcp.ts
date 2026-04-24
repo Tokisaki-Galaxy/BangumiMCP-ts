@@ -4,8 +4,7 @@ import { promptList, promptMap } from "./prompts";
 import {
   resourceList,
   resourceMap,
-  toolList,
-  toolMap,
+  createToolRegistry,
   type ToolContext,
   type ToolDefinition,
   type ToolResponse,
@@ -118,7 +117,7 @@ function parseProtocolVersion(request: Request, params: unknown): string {
   return "2025-03-26";
 }
 
-function findTool(name: string): ToolDefinition | undefined {
+function findTool(name: string, toolMap: Map<string, ToolDefinition>): ToolDefinition | undefined {
   return toolMap.get(name);
 }
 
@@ -134,8 +133,9 @@ async function callTool(
   name: string,
   input: Record<string, unknown>,
   context: ToolContext,
+  toolMap: Map<string, ToolDefinition>,
 ): Promise<ToolResponse> {
-  const tool = findTool(name);
+  const tool = findTool(name, toolMap);
   if (!tool) {
     return { ok: false, text: `Unknown tool: ${name}` };
   }
@@ -154,6 +154,8 @@ async function handleJsonRpc(
   request: Request,
   rpc: JsonRpcRequest,
   context: ToolContext,
+  toolList: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>,
+  toolMap: Map<string, ToolDefinition>,
 ): Promise<JsonRpcResponse> {
   const id = rpc.id ?? null;
 
@@ -192,7 +194,7 @@ async function handleJsonRpc(
       }
 
       const args = asRecord(params.arguments) ?? {};
-      const result = await callTool(params.name, args, context);
+      const result = await callTool(params.name, args, context, toolMap);
       return {
         jsonrpc: "2.0",
         id,
@@ -297,6 +299,8 @@ async function handleJsonRpc(
 }
 
 export function createMcpHandler(config: RuntimeConfig) {
+  const { toolList, toolMap } = createToolRegistry(config);
+
   return async function handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
@@ -352,7 +356,7 @@ export function createMcpHandler(config: RuntimeConfig) {
     }
 
     try {
-      const response = await handleJsonRpc(request, body, context);
+      const response = await handleJsonRpc(request, body, context, toolList, toolMap);
       return jsonResponse(response, 200, {
         "MCP-Protocol-Version": parseProtocolVersion(request, body.params),
       });

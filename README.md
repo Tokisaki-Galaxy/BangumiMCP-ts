@@ -12,7 +12,8 @@
 
 ## 特性
 
-- **55 个 MCP tools**：覆盖条目、人物、角色、用户、收藏、目录、编辑历史
+- **8 个 MCP tools**：`search`、`get_subject`、`get_user`、`get_calendar`、`update_collection`、`manage_index`、`get_person`、`get_character`
+- **`manage_index` 默认关闭**：需要时通过环境变量显式开启
 - **1 个 MCP resource**：内置 Bangumi OpenAPI 文档
 - **1 个 MCP prompt**：Bangumi 使用提示
 - **无状态设计**：每个请求单独携带 `Authorization: Bearer <token>`
@@ -25,7 +26,10 @@
 ## 快速开始
 
 官方 MCP 服务器（流式HTTP）地址：
-https://bgm.api.tski.uk/mcp
+[https://bgm.api.tski.uk/mcp](https://bgm.api.tski.uk/mcp)
+
+bangumiTV 创建个人令牌地址：
+[https://next.bgm.tv/demo/access-token/create](https://next.bgm.tv/demo/access-token/create)
 
 因为可能需要传递个人令牌，基于cloudflare免费版本的使用量和安全考虑，请谨慎使用非官方提供的 MCP 服务器。**建议自行部署**，以下是部署指南。
 
@@ -76,13 +80,14 @@ AUTHTOKEN: <your_token>
 
 ### Tools
 
-- 条目：搜索、浏览、详情、图片、相关人物/角色/章节/关系、章节信息
-- 人物：搜索、详情、图片、相关条目/角色
-- 角色：搜索、详情、图片、相关条目/人物
-- 用户：资料、头像、当前用户
-- 收藏：条目、章节、人物、角色、目录
-- 目录：创建、更新、查询、增删条目
-- 编辑历史：条目、章节、人物、角色
+- `search`：聚合搜索条目、人物、角色
+- `get_subject`：条目详情；可用 `include=["persons","characters","relations","episodes"]` 展开相关数据，失败分段返回 `_error`
+- `get_user`：用户画像 + 收藏快照，分段返回 `_error`
+- `get_calendar`：放送表
+- `update_collection`：唯一写入口；`target_type=subject` 只接受 `subject_status/progress/rating/comment`，`person/character` 只接受 `favorite`
+- `manage_index`：目录管理（默认关闭）
+- `get_person`：人物详情 + 作品/角色，分段返回 `_error`
+- `get_character`：角色详情 + 出演作品/声优，分段返回 `_error`
 
 ### Resource
 
@@ -98,6 +103,7 @@ AUTHTOKEN: <your_token>
 |---|---|
 | `BANGUMI_API_BASE` | Bangumi API 基础地址，默认 `https://api.bgm.tv` |
 | `BANGUMI_USER_AGENT` | 请求使用的 User-Agent |
+| `BANGUMI_ENABLE_INDEX_TOOLS` | 设为 `true`/`1` 时启用 `manage_index` |
 
 ## 项目结构
 

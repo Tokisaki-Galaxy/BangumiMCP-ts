@@ -339,14 +339,16 @@ function validateOnlyAllowedFields(
   input: Record<string, unknown>,
   allowed: string[],
   contextLabel: string,
-): void {
+): string | null {
   for (const key of Object.keys(input)) {
     if (key === "target_type" || allowed.includes(key)) {
       continue;
     }
 
-    throw new Error(`invalid_argument: ${contextLabel} does not accept "${key}".`);
+    return `invalid_argument: ${contextLabel} does not accept "${key}".`;
   }
+
+  return null;
 }
 
 function toSearchSection(response: ToolResponse): { data: string } | { _error: string } {
@@ -666,7 +668,8 @@ async function getUser(input: Record<string, unknown>, context: ToolContext): Pr
     return ok(prettyJson({ user: profile }));
   }
 
-  const resolvedUsername = readString(profile.data, "username");
+  const profileData = profile.data;
+  const resolvedUsername = isRecord(profileData.data) ? readString(profileData.data, "username") : undefined;
   if (!resolvedUsername) {
     return ok(prettyJson({ user: profile, collections: { _error: "Unable to resolve current username." } }));
   }
@@ -711,11 +714,24 @@ async function updateCollection(input: Record<string, unknown>, context: ToolCon
   }
 
   if (targetType === "subject") {
-    validateOnlyAllowedFields(input, ["target_type", "subject_id", "subject_status", "progress", "comment", "rating"], "subject target");
+    const fieldError = validateOnlyAllowedFields(
+      input,
+      ["target_type", "subject_id", "subject_status", "progress", "comment", "rating"],
+      "subject target",
+    );
+    if (fieldError) {
+      return fail(fieldError);
+    }
   } else if (targetType === "person") {
-    validateOnlyAllowedFields(input, ["target_type", "person_id", "favorite"], "person target");
+    const fieldError = validateOnlyAllowedFields(input, ["target_type", "person_id", "favorite"], "person target");
+    if (fieldError) {
+      return fail(fieldError);
+    }
   } else if (targetType === "character") {
-    validateOnlyAllowedFields(input, ["target_type", "character_id", "favorite"], "character target");
+    const fieldError = validateOnlyAllowedFields(input, ["target_type", "character_id", "favorite"], "character target");
+    if (fieldError) {
+      return fail(fieldError);
+    }
   }
 
   if (targetType === "subject") {
@@ -743,7 +759,10 @@ async function updateCollection(input: Record<string, unknown>, context: ToolCon
     }
 
     if (progress !== undefined) {
-      validateOnlyAllowedFields(progress, ["episodes_watched", "volumes_read"], "progress");
+      const progressError = validateOnlyAllowedFields(progress, ["episodes_watched", "volumes_read"], "progress");
+      if (progressError) {
+        return fail(progressError);
+      }
       const episodesWatched = readNumber(progress, "episodes_watched");
       const volumesRead = readNumber(progress, "volumes_read");
       if (episodesWatched !== undefined) {

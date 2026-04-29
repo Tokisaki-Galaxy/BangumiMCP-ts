@@ -312,7 +312,8 @@ export function createMcpHandler(config: RuntimeConfig) {
       const tools: Array<{ name: string; desc: string }> = [
         { name: "search", desc: "Aggregated search for subjects, persons, and characters." },
         { name: "get_subject", desc: "Subject details with expandable includes (persons, characters, relations, episodes)." },
-        { name: "get_user", desc: "User profile plus collection snapshot with subject_type/collection_type/subject_id filters." },
+        { name: "get_user_profile", desc: "User profile only." },
+        { name: "get_user_collections", desc: "User collection snapshot with page_size as a 20-50 sliding range or all, plus offset, subject_type/collection_type/subject_id filters." },
         { name: "get_calendar", desc: "Weekly broadcast schedule." },
         { name: "update_collection", desc: "Write entry for subject/person/character/episode collection updates." },
         { name: "browse_subjects", desc: "Browse the subject catalog by type with cat/year/month/sort filters." },

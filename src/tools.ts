@@ -167,6 +167,21 @@ function readBoolean(input: Record<string, unknown>, key: string): boolean | und
   return typeof value === "boolean" ? value : undefined;
 }
 
+type CollectionPageSize = { all: true } | { all: false; size: number };
+
+function readCollectionPageSize(input: Record<string, unknown>): CollectionPageSize | undefined {
+  const value = input.page_size;
+  if (typeof value === "string" && value.trim().toLowerCase() === "all") {
+    return { all: true };
+  }
+
+  if (typeof value === "number" && Number.isInteger(value) && value >= 20 && value <= 50) {
+    return { all: false, size: value };
+  }
+
+  return undefined;
+}
+
 function readNumberArray(input: Record<string, unknown>, key: string): number[] | undefined {
   const value = input[key];
   if (!Array.isArray(value)) {
@@ -626,11 +641,6 @@ async function getSubject(input: Record<string, unknown>, context: ToolContext):
 
 async function getUser(input: Record<string, unknown>, context: ToolContext): Promise<ToolResponse> {
   const username = readString(input, "username");
-  const collectionLimit = Math.min(readNumber(input, "collection_limit") ?? 50, 50);
-  const collectionOffset = readNumber(input, "collection_offset") ?? 0;
-  const subjectType = readNumber(input, "subject_type");
-  const collectionType = readNumber(input, "collection_type");
-  const subjectId = readNumber(input, "subject_id");
 
   if (!username && !context.authToken) {
     return fail("username is required when no Authorization header is present.");
@@ -651,7 +661,87 @@ async function getUser(input: Record<string, unknown>, context: ToolContext): Pr
     "Unexpected response format for user profile.",
   );
 
-  const collectionQuery: Record<string, string | number | boolean | null | undefined> = { limit: collectionLimit, offset: collectionOffset };
+  return ok(prettyJson({ user: profile }));
+}
+
+type UserCollectionItem = {
+  subject: {
+    summary: string;
+    data: Record<string, unknown>;
+  };
+  status: string;
+};
+
+type UserCollectionsSnapshot = {
+  total: number | undefined;
+  items: UserCollectionItem[];
+};
+
+function parseUserCollectionsPage(success: BangumiSuccess): UserCollectionsSnapshot | undefined {
+  const collections = getDataObject(success);
+  if (!collections || !Array.isArray(collections.data)) {
+    return undefined;
+  }
+
+  return {
+    total: readNumber(collections, "total"),
+    items: collections.data.filter(isRecord).map((item) => {
+      const subject = isRecord(item.subject) ? item.subject : {};
+      return {
+        subject: {
+          summary: formatSubjectSummary(subject),
+          data: subject,
+        },
+        status: formatCollectionStatus(item.type),
+      };
+    }),
+  };
+}
+
+async function fetchUserCollectionsPage(
+  username: string,
+  context: ToolContext,
+  query: Record<string, string | number | boolean | null | undefined>,
+): Promise<SectionPayload<UserCollectionsSnapshot>> {
+  return captureSection(
+    api(context, "GET", `/v0/users/${username}/collections`, query),
+    parseUserCollectionsPage,
+    "Unexpected response format for user collections.",
+  );
+}
+
+async function getUserCollections(input: Record<string, unknown>, context: ToolContext): Promise<ToolResponse> {
+  const username = readString(input, "username");
+  const pageSize = readCollectionPageSize(input) ?? { all: false, size: 20 };
+  const offset = readNumber(input, "offset") ?? 0;
+  const subjectType = readNumber(input, "subject_type");
+  const collectionType = readNumber(input, "collection_type");
+  const subjectId = readNumber(input, "subject_id");
+
+  if (!username && !context.authToken) {
+    return fail("username is required when no Authorization header is present.");
+  }
+
+  let resolvedUsername = username;
+  if (!resolvedUsername) {
+    const result = await api(context, "GET", "/v0/me");
+    const success = ensureBangumiSuccess(result);
+    if (!success) {
+      return fail(formatBangumiFailure(result));
+    }
+
+    const profile = getDataObject(success);
+    resolvedUsername = profile ? readString(profile, "username") : undefined;
+  }
+
+  if (!resolvedUsername) {
+    return fail("Unable to resolve current username.");
+  }
+
+  const collectionQuery: Record<string, string | number | boolean | null | undefined> = {
+    limit: pageSize.all ? 50 : pageSize.size,
+    offset,
+  };
   if (subjectType !== undefined) {
     collectionQuery.subject_type = subjectType;
   }
@@ -659,94 +749,53 @@ async function getUser(input: Record<string, unknown>, context: ToolContext): Pr
     collectionQuery.type = collectionType;
   }
 
-  if (username) {
-    if (subjectId !== undefined) {
-      const collections = await captureSection(
-        api(context, "GET", `/v0/users/${username}/collections/${subjectId}`),
-        (success) => getDataObject(success) ?? undefined,
-        "Unexpected response format for subject collection.",
-      );
-      return ok(prettyJson({ user: profile, collections }));
-    }
-
-    const collections = await captureSection(
-      api(context, "GET", `/v0/users/${username}/collections`, collectionQuery),
-      (success) => {
-        const collections = getDataObject(success);
-        if (!collections || !Array.isArray(collections.data)) {
-          return undefined;
-        }
-
-        return {
-          total: readNumber(collections, "total"),
-          items: collections.data.filter(isRecord).map((item) => {
-            const subject = isRecord(item.subject) ? item.subject : {};
-            return {
-              subject: {
-                summary: formatSubjectSummary(subject),
-                data: subject,
-              },
-              status: formatCollectionStatus(item.type),
-            };
-          }),
-        };
-      },
-      "Unexpected response format for user collections.",
-    );
-
-    return ok(prettyJson({ user: profile, collections }));
-  }
-
-  if ("_error" in profile) {
-    return ok(prettyJson({ user: profile }));
-  }
-
-  const profileData = profile.data;
-  const resolvedUsername = isRecord(profileData.data) ? readString(profileData.data, "username") : undefined;
-  if (!resolvedUsername) {
-    return ok(prettyJson({ user: profile, collections: { _error: "Unable to resolve current username." } }));
-  }
-
   if (subjectId !== undefined) {
-    const collections = await captureSection(
+    const collection = await captureSection(
       api(context, "GET", `/v0/users/${resolvedUsername}/collections/${subjectId}`),
       (success) => getDataObject(success) ?? undefined,
       "Unexpected response format for subject collection.",
     );
-    return ok(prettyJson({ user: profile, collections }));
+    return ok(prettyJson({ username: resolvedUsername, collection }));
+  }
+
+  if (pageSize.all) {
+    const allCollections: UserCollectionsSnapshot = { total: undefined, items: [] };
+    let currentOffset = offset;
+
+    while (true) {
+      const page = await fetchUserCollectionsPage(resolvedUsername, context, {
+        ...collectionQuery,
+        offset: currentOffset,
+      });
+
+      if ("_error" in page) {
+        return ok(prettyJson({ username: resolvedUsername, collections: page }));
+      }
+
+      allCollections.total = allCollections.total ?? page.data.total;
+      allCollections.items.push(...page.data.items);
+
+      const fetched = page.data.items.length;
+      if (fetched === 0) {
+        break;
+      }
+
+      currentOffset += fetched;
+      if (page.data.total !== undefined && allCollections.items.length >= page.data.total) {
+        break;
+      }
+    }
+
+    return ok(prettyJson({ username: resolvedUsername, collections: sectionData(allCollections) }));
   }
 
   const collections = await captureSection(
     api(context, "GET", `/v0/users/${resolvedUsername}/collections`, collectionQuery),
-    (success) => {
-      const collections = getDataObject(success);
-      if (!collections || !Array.isArray(collections.data)) {
-        return undefined;
-      }
-
-      return {
-        total: readNumber(collections, "total"),
-        items: collections.data.filter(isRecord).map((item) => {
-          const subject = isRecord(item.subject) ? item.subject : {};
-          return {
-            subject: {
-              summary: formatSubjectSummary(subject),
-              data: subject,
-            },
-            status: formatCollectionStatus(item.type),
-          };
-        }),
-      };
-    },
+    parseUserCollectionsPage,
     "Unexpected response format for user collections.",
   );
 
-  return ok(
-    prettyJson({
-      user: profile,
-      collections,
-    }),
-  );
+  return ok(prettyJson({ username: resolvedUsername, collections }));
 }
 
 async function updateCollection(input: Record<string, unknown>, context: ToolContext): Promise<ToolResponse> {
@@ -1469,17 +1518,34 @@ Partial include failures are returned as _error fields instead of failing the wh
 
 function buildUserTool(): ToolDefinition {
   return {
-    name: "get_user",
-    description: "Get Bangumi user profile plus a collection snapshot. Profile and collection data are returned separately and can carry _error markers independently.",
+    name: "get_user_profile",
+    description: "Get Bangumi user profile only. Use get_user_collections for collection snapshots.",
     inputSchema: schemaObject({
       username: schemaString("Username"),
-      collection_limit: schemaInteger("Collection limit", { minimum: 1, maximum: 50, default: 50 }),
-      collection_offset: schemaInteger("Collection offset", { minimum: 0, default: 0 }),
+    }),
+    handler: getUser,
+  };
+}
+
+function buildUserCollectionsTool(): ToolDefinition {
+  return {
+    name: "get_user_collections",
+    description: "Get Bangumi user collections with pagination and filters. page_size is a sliding range of 20-50, or 'all' for every record.",
+    inputSchema: schemaObject({
+      username: schemaString("Username"),
+      page_size: {
+        oneOf: [
+          schemaString("Return all records", ["all"]),
+          schemaInteger("Collection page size", { minimum: 20, maximum: 50, default: 20 }),
+        ],
+        description: "Collection page size: 20-50 sliding range, or 'all' to return every record.",
+      },
+      offset: schemaInteger("Collection offset", { minimum: 0, default: 0 }),
       subject_type: schemaInteger("Subject type filter", { enum: [1, 2, 3, 4, 6] }),
       collection_type: schemaInteger("Collection type filter", { enum: [1, 2, 3, 4, 5] }),
       subject_id: schemaInteger("Single subject ID for detailed collection lookup", { minimum: 1 }),
     }),
-    handler: getUser,
+    handler: getUserCollections,
   };
 }
 
@@ -1629,6 +1695,7 @@ export function createToolRegistry(config: RuntimeConfig): { toolList: ToolEntry
     buildSearchTool(),
     buildSubjectTool(),
     buildUserTool(),
+    buildUserCollectionsTool(),
     buildCalendarTool(),
     buildUpdateCollectionTool(),
     buildBrowseSubjectsTool(),

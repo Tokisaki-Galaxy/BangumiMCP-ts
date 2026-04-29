@@ -309,11 +309,59 @@ export function createMcpHandler(config: RuntimeConfig) {
         return new Response(null, { status: 405, headers: { Allow: "GET" } });
       }
 
-      return jsonResponse({
-        name: config.workerName,
-        version: config.workerVersion,
-        endpoint: "/mcp",
-        transport: "streamable-http",
+      const tools: Array<{ name: string; desc: string }> = [
+        { name: "search", desc: "Aggregated search for subjects, persons, and characters." },
+        { name: "get_subject", desc: "Subject details with expandable includes (persons, characters, relations, episodes)." },
+        { name: "get_user", desc: "User profile plus collection snapshot with subject_type/collection_type/subject_id filters." },
+        { name: "get_calendar", desc: "Weekly broadcast schedule." },
+        { name: "update_collection", desc: "Write entry for subject/person/character/episode collection updates." },
+        { name: "browse_subjects", desc: "Browse the subject catalog by type with cat/year/month/sort filters." },
+        { name: "get_collections", desc: "Person/character collection lists and individual lookups." },
+        { name: "get_episode", desc: "Episode details, single/collection list episode collection status." },
+        { name: "get_image", desc: "Image URL redirects for subject/person/character/user." },
+        { name: "get_person", desc: "Person details plus related works and characters." },
+        { name: "get_character", desc: "Character details plus appearances and voice actors." },
+        { name: "manage_index", desc: "Index (directory) CRUD and collection management (requires BANGUMI_ENABLE_INDEX_TOOLS)." },
+      ];
+
+      const toolRows = tools.map((t) => `<tr><td class=\"name\">${t.name}</td><td>${t.desc}</td></tr>`).join("");
+
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bangumi MCP TS</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; background: #fafafa; }
+  h1 { font-size: 1.6rem; margin-bottom: 0.2rem; }
+  h2 { font-size: 1.1rem; margin-top: 2rem; }
+  p { line-height: 1.6; }
+  a { color: #0366d6; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  td { padding: 6px 10px; border-bottom: 1px solid #e8e8e8; vertical-align: top; }
+  .name { font-weight: 600; white-space: nowrap; width: 1%; }
+  .endpoint { background: #fff3cd; padding: 4px 10px; border-radius: 4px; font-family: monospace; }
+  .footer { margin-top: 2.5rem; font-size: 0.85rem; color: #666; }
+</style>
+</head>
+<body>
+<h1>Bangumi MCP TS</h1>
+<p>A <a href="https://modelcontextprotocol.io">Model Context Protocol</a> server for the <a href="https://bgm.tv">Bangumi</a> API, deployable on Cloudflare Workers. Provides programmatic access to anime, book, music, game, and real-world media data.</p>
+<p>
+  <strong>MCP endpoint:</strong> <code class="endpoint">POST /mcp</code> (streamable HTTP)<br>
+  <strong>Source:</strong> <a href="https://github.com/tokisaki-galaxy/bangumiMCP-ts">github.com/tokisaki-galaxy/bangumiMCP-ts</a><br>
+  <strong>Inspired by:</strong> <a href="https://github.com/Ukenn2112/BangumiMCP">Ukenn2112/BangumiMCP</a>
+</p>
+<h2>Tools (${tools.length})</h2>
+<table>${toolRows}</table>
+<p class="footer">${config.workerName} v${config.workerVersion}</p>
+</body>
+</html>`;
+
+      return new Response(html, {
+        status: 200,
+        headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
       });
     }
 

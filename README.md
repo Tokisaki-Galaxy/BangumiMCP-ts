@@ -12,7 +12,7 @@
 
 ## 特性
 
-- **8 个 MCP tools**：`search`、`get_subject`、`get_user`、`get_calendar`、`update_collection`、`manage_index`、`get_person`、`get_character`
+- **12 个 MCP tools**：`search`、`get_subject`、`get_user`、`get_calendar`、`update_collection`、`browse_subjects`、`get_collections`、`get_episode`、`get_image`、`manage_index`、`get_person`、`get_character`
 - **`manage_index` 默认关闭**：需要时通过环境变量显式开启
 - **1 个 MCP resource**：内置 Bangumi OpenAPI 文档
 - **1 个 MCP prompt**：Bangumi 使用提示
@@ -80,11 +80,15 @@ AUTHTOKEN: <your_token>
 
 ### Tools
 
-- `search`：聚合搜索条目、人物、角色
-- `get_subject`：条目详情；可用 `include=["persons","characters","relations","episodes"]` 展开相关数据，失败分段返回 `_error`
-- `get_user`：用户画像 + 收藏快照，分段返回 `_error`
+- `search`：聚合搜索条目、人物、角色，支持 `subject_type`/`nsfw_filter`/`career_filter` 筛选
+- `get_subject`：条目详情；可用 `include=["persons","characters","relations","episodes"]` 展开，`episode_type` 筛选剧集类型，失败分段返回 `_error`
+- `get_user`：用户画像 + 收藏快照；支持 `subject_type`/`collection_type` 筛选收藏，传 `subject_id` 查单个收藏详情
 - `get_calendar`：放送表
-- `update_collection`：唯一写入口；`target_type=subject` 只接受 `subject_status/progress/rating/comment`，`person/character` 只接受 `favorite`
+- `update_collection`：统一写入口；`target_type=subject` 接受 `subject_status/progress/rating/comment`，`person/character` 接受 `favorite`，`episode/episode_batch` 支持剧集收藏更新
+- `browse_subjects`：按类型浏览条目目录，支持 `cat`/`year`/`month`/`sort` 等筛选
+- `get_collections`：人物/角色收藏查询，`target_type=person|character`，传 `person_id`/`character_id` 查单个
+- `get_episode`：剧集详情 + 剧集收藏（`episode_id` 查详情，`subject_id+collection` 查收藏列表）
+- `get_image`：统一图片 URL 获取，`target_type=subject|person|character|user`
 - `manage_index`：目录管理（默认关闭）
 - `get_person`：人物详情 + 作品/角色，分段返回 `_error`
 - `get_character`：角色详情 + 出演作品/声优，分段返回 `_error`

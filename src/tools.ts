@@ -69,8 +69,11 @@ const AVATAR_TYPES = ["small", "large", "medium"] as const;
 const COLLECTION_TYPES = [1, 2, 3, 4, 5] as const;
 const EPISODE_COLLECTION_TYPES = [1, 2, 3] as const;
 const EPISODE_TYPES = [0, 1, 2, 3, 4, 5, 6] as const;
-const UPDATE_TARGET_TYPES = ["subject", "person", "character"] as const;
+const UPDATE_TARGET_TYPES = ["subject", "person", "character", "episode", "episode_batch"] as const;
 const SUBJECT_STATUS_VALUES = ["wish", "watching", "done", "on_hold", "dropped"] as const;
+const BROWSE_SORTS = ["date", "rank"] as const;
+const COLLECTION_TARGETS = ["person", "character"] as const;
+const IMAGE_TARGETS = ["subject", "person", "character", "user"] as const;
 const INDEX_ACTIONS = [
   "create",
   "get",
@@ -399,10 +402,14 @@ async function searchPersons(input: Record<string, unknown>, context: ToolContex
   const limit = Math.min(readNumber(input, "limit") ?? 10, 20);
   const offset = readNumber(input, "offset") ?? 0;
   const careerFilter = readStringArray(input, "career_filter");
+  const nsfwFilter = readBoolean(input, "nsfw_filter");
 
   const payload: Record<string, unknown> = { keyword, filter: {} };
   if (careerFilter && careerFilter.length > 0) {
     (payload.filter as Record<string, unknown>).career = careerFilter;
+  }
+  if (nsfwFilter !== undefined) {
+    (payload.filter as Record<string, unknown>).nsfw = nsfwFilter;
   }
 
   const result = await api(context, "POST", "/v0/search/persons", { limit, offset }, payload);
@@ -497,6 +504,7 @@ async function getSubject(input: Record<string, unknown>, context: ToolContext):
   const includeSet = new Set(requestedIncludes);
   const episodeLimit = Math.min(readNumber(input, "episode_limit") ?? 100, 200);
   const episodeOffset = readNumber(input, "episode_offset") ?? 0;
+  const episodeType = readNumber(input, "episode_type");
 
   const subjectTask = captureSection(
     api(context, "GET", `/v0/subjects/${subjectId}`),
@@ -563,7 +571,12 @@ async function getSubject(input: Record<string, unknown>, context: ToolContext):
 
   const episodesTask = includeSet.has("episodes")
     ? captureSection(
-        api(context, "GET", "/v0/episodes", { subject_id: subjectId, limit: episodeLimit, offset: episodeOffset }),
+        api(context, "GET", "/v0/episodes", {
+          subject_id: subjectId,
+          limit: episodeLimit,
+          offset: episodeOffset,
+          ...(episodeType !== undefined ? { type: episodeType } : {}),
+        }),
         (success) => {
           const episodes = getDataObject(success);
           if (!episodes || !Array.isArray(episodes.data)) {
@@ -615,6 +628,9 @@ async function getUser(input: Record<string, unknown>, context: ToolContext): Pr
   const username = readString(input, "username");
   const collectionLimit = Math.min(readNumber(input, "collection_limit") ?? 50, 50);
   const collectionOffset = readNumber(input, "collection_offset") ?? 0;
+  const subjectType = readNumber(input, "subject_type");
+  const collectionType = readNumber(input, "collection_type");
+  const subjectId = readNumber(input, "subject_id");
 
   if (!username && !context.authToken) {
     return fail("username is required when no Authorization header is present.");
@@ -635,9 +651,26 @@ async function getUser(input: Record<string, unknown>, context: ToolContext): Pr
     "Unexpected response format for user profile.",
   );
 
+  const collectionQuery: Record<string, string | number | boolean | null | undefined> = { limit: collectionLimit, offset: collectionOffset };
+  if (subjectType !== undefined) {
+    collectionQuery.subject_type = subjectType;
+  }
+  if (collectionType !== undefined) {
+    collectionQuery.type = collectionType;
+  }
+
   if (username) {
+    if (subjectId !== undefined) {
+      const collections = await captureSection(
+        api(context, "GET", `/v0/users/${username}/collections/${subjectId}`),
+        (success) => getDataObject(success) ?? undefined,
+        "Unexpected response format for subject collection.",
+      );
+      return ok(prettyJson({ user: profile, collections }));
+    }
+
     const collections = await captureSection(
-      api(context, "GET", `/v0/users/${username}/collections`, { limit: collectionLimit, offset: collectionOffset }),
+      api(context, "GET", `/v0/users/${username}/collections`, collectionQuery),
       (success) => {
         const collections = getDataObject(success);
         if (!collections || !Array.isArray(collections.data)) {
@@ -674,8 +707,17 @@ async function getUser(input: Record<string, unknown>, context: ToolContext): Pr
     return ok(prettyJson({ user: profile, collections: { _error: "Unable to resolve current username." } }));
   }
 
+  if (subjectId !== undefined) {
+    const collections = await captureSection(
+      api(context, "GET", `/v0/users/${resolvedUsername}/collections/${subjectId}`),
+      (success) => getDataObject(success) ?? undefined,
+      "Unexpected response format for subject collection.",
+    );
+    return ok(prettyJson({ user: profile, collections }));
+  }
+
   const collections = await captureSection(
-    api(context, "GET", `/v0/users/${resolvedUsername}/collections`, { limit: collectionLimit, offset: collectionOffset }),
+    api(context, "GET", `/v0/users/${resolvedUsername}/collections`, collectionQuery),
     (success) => {
       const collections = getDataObject(success);
       if (!collections || !Array.isArray(collections.data)) {
@@ -793,6 +835,50 @@ async function updateCollection(input: Record<string, unknown>, context: ToolCon
     }
 
     return ok(`Updated subject collection ${subjectId}.`);
+  }
+
+  if (targetType === "episode_batch") {
+    const fieldError = validateOnlyAllowedFields(
+      input,
+      ["target_type", "subject_id", "episode_ids", "episode_status"],
+      "episode_batch target",
+    );
+    if (fieldError) return fail(fieldError);
+
+    const subjectId = readNumber(input, "subject_id");
+    if (subjectId === undefined) return fail("invalid_argument: subject_id is required for target_type=episode_batch.");
+    const episodeIds = readNumberArray(input, "episode_ids");
+    if (!episodeIds || episodeIds.length === 0) return fail("invalid_argument: episode_ids is required for target_type=episode_batch.");
+    const status = readNumber(input, "episode_status");
+    if (status === undefined || !EPISODE_COLLECTION_TYPES.includes(status as typeof EPISODE_COLLECTION_TYPES[number])) {
+      return fail(`invalid_argument: episode_status must be one of: ${EPISODE_COLLECTION_TYPES.join(", ")}.`);
+    }
+
+    const result = await api(context, "PATCH", `/v0/users/-/collections/${subjectId}/episodes`, undefined, { episode_id: episodeIds, type: status });
+    const success = ensureBangumiSuccess(result);
+    if (!success) return fail(formatBangumiFailure(result));
+    return ok(`Updated collection for ${episodeIds.length} episodes in subject ${subjectId}.`);
+  }
+
+  if (targetType === "episode") {
+    const fieldError = validateOnlyAllowedFields(
+      input,
+      ["target_type", "episode_id", "episode_status"],
+      "episode target",
+    );
+    if (fieldError) return fail(fieldError);
+
+    const episodeId = readNumber(input, "episode_id");
+    if (episodeId === undefined) return fail("invalid_argument: episode_id is required for target_type=episode.");
+    const status = readNumber(input, "episode_status");
+    if (status === undefined || !EPISODE_COLLECTION_TYPES.includes(status as typeof EPISODE_COLLECTION_TYPES[number])) {
+      return fail(`invalid_argument: episode_status must be one of: ${EPISODE_COLLECTION_TYPES.join(", ")}.`);
+    }
+
+    const result = await api(context, "PUT", `/v0/users/-/collections/-/episodes/${episodeId}`, undefined, { type: status });
+    const success = ensureBangumiSuccess(result);
+    if (!success) return fail(formatBangumiFailure(result));
+    return ok(`Updated collection for episode ${episodeId}.`);
   }
 
   const favorite = readBoolean(input, "favorite");
@@ -1109,6 +1195,188 @@ async function manageIndex(input: Record<string, unknown>, context: ToolContext)
   }
 }
 
+async function browseSubjects(input: Record<string, unknown>, context: ToolContext): Promise<ToolResponse> {
+  const subjectType = readNumber(input, "subject_type");
+  if (subjectType === undefined) {
+    return fail("subject_type is required.");
+  }
+
+  const limit = Math.min(readNumber(input, "limit") ?? 30, 50);
+  const offset = readNumber(input, "offset") ?? 0;
+  const cat = readNumber(input, "cat");
+  const series = readBoolean(input, "series");
+  const platform = readString(input, "platform");
+  const sort = readString(input, "sort") ?? "date";
+  const year = readNumber(input, "year");
+  const month = readNumber(input, "month");
+
+  const query: Record<string, string | number | boolean | null | undefined> = {
+    type: subjectType,
+    limit,
+    offset,
+    sort,
+  };
+  if (cat !== undefined) query.cat = cat;
+  if (series !== undefined) query.series = series;
+  if (platform !== undefined) query.platform = platform;
+  if (year !== undefined) query.year = year;
+  if (month !== undefined) query.month = month;
+
+  const result = await api(context, "GET", "/v0/subjects", query);
+  const success = ensureBangumiSuccess(result);
+  if (!success) {
+    return fail(formatBangumiFailure(result));
+  }
+
+  const data = getDataObject(success);
+  if (!data || !Array.isArray(data.data)) {
+    return fail("Unexpected response format for browse subjects.");
+  }
+
+  const items = data.data.filter(isRecord).map(formatSubjectSummary);
+  return ok(formatItemList(`Browse subjects (type ${subjectType}):`, items, readNumber(data, "total")));
+}
+
+async function getCollections(input: Record<string, unknown>, context: ToolContext): Promise<ToolResponse> {
+  const targetType = readString(input, "target_type");
+  if (!targetType || !COLLECTION_TARGETS.includes(targetType as (typeof COLLECTION_TARGETS)[number])) {
+    return fail(`invalid_argument: target_type must be one of: ${COLLECTION_TARGETS.join(", ")}.`);
+  }
+
+  const username = readString(input, "username");
+  if (!username) {
+    return fail("username is required.");
+  }
+
+  if (targetType === "person") {
+    const personId = readNumber(input, "person_id");
+    if (personId !== undefined) {
+      const result = await api(context, "GET", `/v0/users/${username}/collections/-/persons/${personId}`);
+      const success = ensureBangumiSuccess(result);
+      if (!success) return fail(formatBangumiFailure(result));
+      return ok(prettyJson(getDataObject(success)));
+    }
+
+    const limit = Math.min(readNumber(input, "limit") ?? 30, 50);
+    const offset = readNumber(input, "offset") ?? 0;
+    const result = await api(context, "GET", `/v0/users/${username}/collections/-/persons`, { limit, offset });
+    const success = ensureBangumiSuccess(result);
+    if (!success) return fail(formatBangumiFailure(result));
+
+    const data = getDataObject(success);
+    if (!data || !Array.isArray(data.data)) return fail("Unexpected response format for person collections.");
+    const items = data.data.filter(isRecord).map((item) => `ID: ${item.id ?? "?"} | Name: ${item.name ?? "Unknown"}`);
+    return ok(formatItemList(`Person collections for ${username}:`, items, readNumber(data, "total")));
+  }
+
+  // targetType === "character"
+  const characterId = readNumber(input, "character_id");
+  if (characterId !== undefined) {
+    const result = await api(context, "GET", `/v0/users/${username}/collections/-/characters/${characterId}`);
+    const success = ensureBangumiSuccess(result);
+    if (!success) return fail(formatBangumiFailure(result));
+    return ok(prettyJson(getDataObject(success)));
+  }
+
+  const limit = Math.min(readNumber(input, "limit") ?? 30, 50);
+  const offset = readNumber(input, "offset") ?? 0;
+  const result = await api(context, "GET", `/v0/users/${username}/collections/-/characters`, { limit, offset });
+  const success = ensureBangumiSuccess(result);
+  if (!success) return fail(formatBangumiFailure(result));
+
+  const data = getDataObject(success);
+  if (!data || !Array.isArray(data.data)) return fail("Unexpected response format for character collections.");
+  const items = data.data.filter(isRecord).map((item) => `ID: ${item.id ?? "?"} | Name: ${item.name ?? "Unknown"}`);
+  return ok(formatItemList(`Character collections for ${username}:`, items, readNumber(data, "total")));
+}
+
+async function getEpisode(input: Record<string, unknown>, context: ToolContext): Promise<ToolResponse> {
+  const episodeId = readNumber(input, "episode_id");
+  const subjectId = readNumber(input, "subject_id");
+  const collection = readBoolean(input, "collection") ?? false;
+
+  if (episodeId !== undefined) {
+    if (collection) {
+      const result = await api(context, "GET", `/v0/users/-/collections/-/episodes/${episodeId}`);
+      const success = ensureBangumiSuccess(result);
+      if (!success) return fail(formatBangumiFailure(result));
+      const data = getDataObject(success);
+      if (!data) return fail("Unexpected response format for episode collection.");
+      const status = formatEpisodeCollectionStatus(data.type);
+      const episode = isRecord(data.episode) ? data.episode : {};
+      const name = readString(episode, "name") ?? readString(episode, "name_cn") ?? `Episode ${episodeId}`;
+      return ok(`Episode ${episodeId} collection:\n  Status: ${status}\n  Episode: ${name}`);
+    }
+
+    const result = await api(context, "GET", `/v0/episodes/${episodeId}`);
+    const success = ensureBangumiSuccess(result);
+    if (!success) return fail(formatBangumiFailure(result));
+    const data = getDataObject(success);
+    if (!data) return fail("Unexpected response format for episode details.");
+    return ok(formatEpisodeSummary(data));
+  }
+
+  if (subjectId !== undefined && collection) {
+    const limit = Math.min(readNumber(input, "limit") ?? 100, 200);
+    const offset = readNumber(input, "offset") ?? 0;
+    const episodeType = readNumber(input, "episode_type");
+
+    const query: Record<string, string | number | boolean | null | undefined> = { limit, offset };
+    if (episodeType !== undefined) query.episode_type = episodeType;
+
+    const result = await api(context, "GET", `/v0/users/-/collections/${subjectId}/episodes`, query);
+    const success = ensureBangumiSuccess(result);
+    if (!success) return fail(formatBangumiFailure(result));
+
+    const data = getDataObject(success);
+    if (!data || !Array.isArray(data.data)) return fail("Unexpected response format for episode collections.");
+    const items = data.data.filter(isRecord).map((item) => {
+      const ep = isRecord(item.episode) ? item.episode : {};
+      return `${formatEpisodeSummary(ep)} | Collection: ${formatEpisodeCollectionStatus(item.type)}`;
+    });
+    return ok(formatItemList(`Episode collections for subject ${subjectId}:`, items, readNumber(data, "total")));
+  }
+
+  return fail("Provide episode_id for details/single collection, or subject_id + collection=true for the collection list.");
+}
+
+async function getImage(input: Record<string, unknown>, context: ToolContext): Promise<ToolResponse> {
+  const targetType = readString(input, "target_type");
+  if (!targetType || !IMAGE_TARGETS.includes(targetType as (typeof IMAGE_TARGETS)[number])) {
+    return fail(`invalid_argument: target_type must be one of: ${IMAGE_TARGETS.join(", ")}.`);
+  }
+
+  const imageType = readString(input, "image_type") ?? "large";
+
+  let path: string;
+  if (targetType === "subject") {
+    const targetId = readNumber(input, "target_id");
+    if (targetId === undefined) return fail("target_id is required for subject images.");
+    path = `/v0/subjects/${targetId}/image`;
+  } else if (targetType === "person") {
+    const targetId = readNumber(input, "target_id");
+    if (targetId === undefined) return fail("target_id is required for person images.");
+    path = `/v0/persons/${targetId}/image`;
+  } else if (targetType === "character") {
+    const targetId = readNumber(input, "target_id");
+    if (targetId === undefined) return fail("target_id is required for character images.");
+    path = `/v0/characters/${targetId}/image`;
+  } else {
+    const username = readString(input, "username");
+    if (!username) return fail("username is required for user avatar.");
+    path = `/v0/users/${username}/avatar`;
+  }
+
+  const result = await api(context, "GET", path, { type: imageType });
+  if (result.ok && result.location) {
+    return ok(`${targetType} image URL (${imageType}): ${result.location}`);
+  }
+  if (!result.ok) {
+    return fail(formatBangumiFailure(result));
+  }
+  return fail(`Could not retrieve image for ${targetType}.`);
+}
+
 async function runSearch(input: Record<string, unknown>, context: ToolContext): Promise<ToolResponse> {
   const keyword = readString(input, "keyword");
   if (!keyword) {
@@ -1191,6 +1459,7 @@ Partial include failures are returned as _error fields instead of failing the wh
         include: schemaArray(schemaString("Include", ["persons", "characters", "relations", "episodes"]), "Include related data"),
         episode_limit: schemaInteger("Episode limit", { minimum: 1, maximum: 200, default: 100 }),
         episode_offset: schemaInteger("Episode offset", { minimum: 0, default: 0 }),
+        episode_type: schemaInteger("Episode type filter", { enum: [0, 1, 2, 3, 4, 5, 6] }),
       },
       ["subject_id"],
     ),
@@ -1206,6 +1475,9 @@ function buildUserTool(): ToolDefinition {
       username: schemaString("Username"),
       collection_limit: schemaInteger("Collection limit", { minimum: 1, maximum: 50, default: 50 }),
       collection_offset: schemaInteger("Collection offset", { minimum: 0, default: 0 }),
+      subject_type: schemaInteger("Subject type filter", { enum: [1, 2, 3, 4, 6] }),
+      collection_type: schemaInteger("Collection type filter", { enum: [1, 2, 3, 4, 5] }),
+      subject_id: schemaInteger("Single subject ID for detailed collection lookup", { minimum: 1 }),
     }),
     handler: getUser,
   };
@@ -1214,14 +1486,17 @@ function buildUserTool(): ToolDefinition {
 function buildUpdateCollectionTool(): ToolDefinition {
   return {
     name: "update_collection",
-    description: "Update Bangumi collections with strict target-type validation. Subject targets accept subject_status, progress, rating, and comment; person/character targets accept favorite only. Invalid field mixes return invalid_argument.",
+    description: "Update Bangumi collections. target_type values: subject (subject_status/progress/rating/comment), person (favorite), character (favorite), episode (episode_status for single), episode_batch (subject_id+episode_ids+episode_status for batch).",
     requiresAuth: true,
     inputSchema: schemaObject({
       target_type: schemaString("Target type", UPDATE_TARGET_TYPES),
       subject_id: schemaInteger("Subject ID", { minimum: 1 }),
       character_id: schemaInteger("Character ID", { minimum: 1 }),
       person_id: schemaInteger("Person ID", { minimum: 1 }),
+      episode_id: schemaInteger("Episode ID", { minimum: 1 }),
+      episode_ids: schemaArray(schemaInteger("Episode ID", { minimum: 1 }), "Episode ID list"),
       subject_status: schemaString("Subject status", SUBJECT_STATUS_VALUES),
+      episode_status: schemaInteger("Episode status", { enum: [1, 2, 3] }),
       progress: schemaObject({
         episodes_watched: schemaInteger("Episodes watched", { minimum: 0 }),
         volumes_read: schemaInteger("Volumes read", { minimum: 0 }),
@@ -1272,6 +1547,71 @@ function buildManageIndexTool(): ToolDefinition {
   };
 }
 
+function buildBrowseSubjectsTool(): ToolDefinition {
+  return {
+    name: "browse_subjects",
+    description: "Browse Bangumi subjects by type with optional filters (category, year, month, platform, series, sort). Required: subject_type (1=Book, 2=Anime, 3=Music, 4=Game, 6=Real).",
+    inputSchema: schemaObject({
+      subject_type: schemaInteger("Subject type", { enum: [1, 2, 3, 4, 6] }),
+      cat: schemaInteger("Category filter"),
+      series: schemaBoolean("Series filter (books)"),
+      platform: schemaString("Platform filter (games)"),
+      sort: schemaString("Sort order", BROWSE_SORTS),
+      year: schemaInteger("Year filter"),
+      month: schemaInteger("Month filter", { minimum: 1, maximum: 12 }),
+      limit: schemaInteger("Limit", { minimum: 1, maximum: 50, default: 30 }),
+      offset: schemaInteger("Offset", { minimum: 0, default: 0 }),
+    }, ["subject_type"]),
+    handler: browseSubjects,
+  };
+}
+
+function buildGetCollectionsTool(): ToolDefinition {
+  return {
+    name: "get_collections",
+    description: "Get Bangumi person/character collection lists or individual collection details. Use target_type=person|character with username. Pass person_id or character_id for individual lookup.",
+    inputSchema: schemaObject({
+      target_type: schemaString("Collection target", COLLECTION_TARGETS),
+      username: schemaString("Username"),
+      person_id: schemaInteger("Person ID for individual lookup", { minimum: 1 }),
+      character_id: schemaInteger("Character ID for individual lookup", { minimum: 1 }),
+      limit: schemaInteger("Limit", { minimum: 1, maximum: 50, default: 30 }),
+      offset: schemaInteger("Offset", { minimum: 0, default: 0 }),
+    }, ["target_type", "username"]),
+    handler: getCollections,
+  };
+}
+
+function buildGetEpisodeTool(): ToolDefinition {
+  return {
+    name: "get_episode",
+    description: "Get Bangumi episode details or episode collection status. episode_id alone = details. episode_id + collection=true = single collection. subject_id + collection=true = collection list.",
+    inputSchema: schemaObject({
+      episode_id: schemaInteger("Episode ID", { minimum: 1 }),
+      subject_id: schemaInteger("Subject ID for collection list", { minimum: 1 }),
+      episode_type: schemaInteger("Episode type filter", { enum: [0, 1, 2, 3, 4, 5, 6] }),
+      collection: schemaBoolean("Set true to query collection status"),
+      limit: schemaInteger("Limit", { minimum: 1, maximum: 200, default: 100 }),
+      offset: schemaInteger("Offset", { minimum: 0, default: 0 }),
+    }),
+    handler: getEpisode,
+  };
+}
+
+function buildGetImageTool(): ToolDefinition {
+  return {
+    name: "get_image",
+    description: "Get image URL for subject/person/character/user. Returns the redirect location URL for the requested image type. target_type=subject|person|character requires target_id; target_type=user requires username.",
+    inputSchema: schemaObject({
+      target_type: schemaString("Image target", IMAGE_TARGETS),
+      target_id: schemaInteger("Subject/Person/Character ID", { minimum: 1 }),
+      username: schemaString("Username (for user avatar)"),
+      image_type: schemaString("Image type", IMAGE_TYPES),
+    }, ["target_type"]),
+    handler: getImage,
+  };
+}
+
 function buildResourceList(): ResourceDefinition[] {
   return [
     {
@@ -1291,6 +1631,10 @@ export function createToolRegistry(config: RuntimeConfig): { toolList: ToolEntry
     buildUserTool(),
     buildCalendarTool(),
     buildUpdateCollectionTool(),
+    buildBrowseSubjectsTool(),
+    buildGetCollectionsTool(),
+    buildGetEpisodeTool(),
+    buildGetImageTool(),
   ];
 
   if (config.enableIndexTools) {
